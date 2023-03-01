@@ -1,0 +1,11 @@
+# set them to the right values for the appropriate environment
+export env=dev
+export NAMESPACE=dt4dev
+export KUBECONFIG=/k8s/dt4dev.config
+export K8S_APISERVER=k8s://https://172.27.16.212:6443
+export s3_endpoint=https://cog.sanger.ac.uk
+export s3_access_key=AAAAA
+export s3_secret_key=BBBBB
+export history_server_ip=172.27.24.215
+export history_server_port=18080
+export image_tag=prefect2

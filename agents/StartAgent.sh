@@ -1,0 +1,1 @@
+nohup prefect agent start -p "$env"-agent-pool > /tmp/prefect.agent."$env".log &
