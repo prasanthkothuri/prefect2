@@ -70,3 +70,21 @@ platemap_notification_query = """
     GROUP BY date(messageCreateDateUtc),file_name
     ORDER BY Lab, file_name
     """
+
+#Mesh database
+s3_bucket_prod = "mesh-prod"
+mysql_host_prod = "vm-mii-mesh-p1.internal.sanger.ac.uk"
+s3_bucket_dev = "mesh-dev"
+mysql_host_dev = "172.27.26.134"
+mysql_user = "nifi_user"
+mysql_database = "nifi_pipeline_mesh"
+
+
+#NHSD pipeline variables
+eng_table = "nhsd_data_eng"
+sco_table = "nhsd_data_sco"
+nhsd_ingested_files_name = "nhsd_ingested_files.list"
+eng_file_type = "<WorkflowId>SANG_COVID19_ANTIGEN</WorkflowId>"
+sco_file_type = "<WorkflowId>SANG_COVID19_ANTIGEN_PHS</WorkflowId>"
+s3_path_nhsd_ind = "s3://dhsc-edge-prod/latest_nhsd_covid19.csv"
+endpoint_url_nhsd_ind = "https://cog.sanger.ac.uk"
