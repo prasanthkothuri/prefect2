@@ -12,11 +12,12 @@ import boto3
 import re
 import pymysql as sql
 from boto3 import s3
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.types import Integer, Text, DateTime, Float
 import numpy as np
 from botocore.exceptions import ClientError
 from sqlalchemy import exc
+import pyarrow as pa
 
 
 # nhsd_ingestion flow to chain the tasks
@@ -29,16 +30,16 @@ def nhsd_ingestion():
 
     if "dev" in os.getenv("env"):
         s3_bucket = s3_bucket_dev
-        mysql_host = mysql_host_dev
+        mysql_host = mesh_mysql_host_dev
     else:
-        s3_bucket = s3_bucket_prod
-        mysql_host = mysql_host_prod
+        s3_bucket = mesh_s3_bucket_prod
+        mysql_host = mesh_mysql_host_prod
 
     mysql_password = os.getenv("mdb_mysql_password")
-    mysql_user_in = mysql_user
-    mysql_database_in = mysql_database
-    eng_table_in = eng_table
-    sco_table_in = sco_table
+    mysql_user_in = mesh_mysql_user
+    mysql_database_in = mesh_mysql_database
+    eng_table_in = eng_table_nhsd
+    sco_table_in = sco_table_nhsd
     nhsd_ingested_files_name_in = nhsd_ingested_files_name
     eng_file_type_in = eng_file_type
     sco_file_type_in = sco_file_type
@@ -81,7 +82,7 @@ def nhsd_ingestion():
     def insert_eng_data_into_mysql(eng_files, list_already_inserted):
         print('--Ingesting England files--')
         sql_engine = create_engine(
-            'mysql+pymysql://' + mysql_user + ':' + mysql_password + '@' + mysql_host + '/' + mysql_database,
+            'mysql+pymysql://' + mysql_user_in + ':' + mysql_password + '@' + mysql_host + '/' + mysql_database_in,
             pool_recycle=3600, connect_args={'ssl': {'ssl': True}})
         db_connection = sql_engine.connect()
         for file in eng_files:
@@ -99,7 +100,7 @@ def nhsd_ingestion():
                 # df.to_sql(eng_table, db_connection, if_exists='append', index=False)
                 for i in range(len(df)):
                     try:
-                        df.iloc[i:i + 1].to_sql(eng_table, db_connection, if_exists='append', index=False)
+                        df.iloc[i:i + 1].to_sql(eng_table_nhsd, db_connection, if_exists='append', index=False)
                     except exc.IntegrityError:
                         pass  # or any other action
                 list_already_inserted.append(file)
@@ -111,7 +112,7 @@ def nhsd_ingestion():
     def insert_sco_data_into_mysql(sco_files, list_already_inserted):
         print('--Ingesting Scotland files--')
         sql_engine = create_engine(
-            'mysql+pymysql://' + mysql_user + ':' + mysql_password + '@' + mysql_host + '/' + mysql_database,
+            'mysql+pymysql://' + mysql_user_in + ':' + mysql_password + '@' + mysql_host + '/' + mysql_database_in,
             pool_recycle=3600, connect_args={'ssl': {'ssl': True}})
         db_connection = sql_engine.connect()
         for file in sco_files:
@@ -135,7 +136,7 @@ def nhsd_ingestion():
                 # df.to_sql(sco_table, db_connection, if_exists='append', index=False)
                 for i in range(len(df)):
                     try:
-                        df.iloc[i:i + 1].to_sql(sco_table, db_connection, if_exists='append', index=False)
+                        df.iloc[i:i + 1].to_sql(sco_table_nhsd, db_connection, if_exists='append', index=False)
                     except exc.IntegrityError:
                         pass  # or any other action
                 list_already_inserted.append(file)
@@ -151,6 +152,7 @@ def nhsd_ingestion():
 
     @task(name='get_processed_files')
     def get_processed_files():
+        list_already_inserted = []
         try:
             s3_object = s3.Bucket(s3_bucket).Object(nhsd_ingested_files_name)
             list_already_inserted = s3_object.get()['Body'].read().decode('utf-8').splitlines()
@@ -171,54 +173,10 @@ def nhsd_ingestion():
 
 @flow(name='nhsd_internal_delivery')
 def nhsd_internal_delivery():
-    s3_path = "s3://dhsc-edge-prod/latest_nhsd_covid19.csv"
-    endpoint_url = "https://cog.sanger.ac.uk"
+    s3_path = s3_path_nhsd_ind
+    endpoint_url = endpoint_url_nhsd_ind
     nifi_user_password = os.getenv("mdb_mysql_password")
-    query = """
-    SELECT 
-      SpecimenId,
-      CASE
-          WHEN second(TestStartDate)=0 and microsecond(TestStartDate)=0 THEN DATE_FORMAT(TestStartDate,'%Y-%m-%dT%H:%i')
-          WHEN microsecond(TestStartDate)=0 THEN DATE_FORMAT(TestStartDate,'%Y-%m-%dT%H:%i:%s')
-          ELSE SUBSTRING(DATE_FORMAT(TestStartDate,'%Y-%m-%dT%H:%i:%s.%f'),1,23)
-      END as TestStartDate,
-      OuterPostcode,
-      VaccinationStatus,
-      VaccinationPeriod,
-      CASE
-         WHEN HasRecentlyTravelled=0 THEN 'false'
-         WHEN HasRecentlyTravelled IS NULL THEN HasRecentlyTravelled
-         ELSE 'true'
-      END as HasRecentlyTravelled,
-      Ch1Cq,
-      Ch1Result,
-      Ch1Target,
-      Ch2Cq,
-      Ch2Result,
-      Ch2Target,
-      Ch3Cq,
-      Ch3Result,
-      Ch3Target,
-      Ch4Cq,
-      Ch4Result,
-      Ch4Target,
-      SampleOfInterest,
-      VocOperation,
-      VocAreaName,
-      SampleSequencingPriority,
-      TestCentreID,
-      TestReason,
-      CASE 
-          WHEN second(SpecimenProcessedDate)=0 THEN DATE_FORMAT(SpecimenProcessedDate,'%Y-%m-%dT%H:%i')
-          ELSE DATE_FORMAT(SpecimenProcessedDate,'%Y-%m-%dT%H:%i:%s')
-      END as SpecimenProcessedDate
-    FROM 
-      nhsd_data_eng
-    WHERE 
-      seen=1
-    AND 
-      TestStartDate IS NOT NULL
-      """
+    query = nhsd_ind_query
     dtype = {
         'OuterPostcode': pa.dictionary(index_type=pa.int8(), value_type=pa.string()),
         'VaccinationStatus': pa.dictionary(index_type=pa.int8(), value_type=pa.string()),
@@ -257,14 +215,7 @@ def nhsd_internal_delivery():
         }
     }
 
-    # state handler
-    handler = slack_notifier(only_states=[Failed])
-
-    @task(log_stdout=True)
-    def print_output(output):
-        print(output)
-
-    @task(log_stdout=True)
+    @task(name='mysql_fetch')
     def mysql_fetch(query):
         mysql_conn = pymysql.connect(database="nifi_pipeline_mesh", user="nifi_user", password=nifi_user_password,
                                      host="vm-mii-mesh-p1.internal.sanger.ac.uk", port=3306, ssl={'ssl': 'TRUE'})
@@ -275,7 +226,11 @@ def nhsd_internal_delivery():
         )
         return df
 
-    @task(log_stdout=True)
+    @task
+    def print_output(output):
+        print(output)
+
+    @task(name='write_to_s3')
     def write_to_s3(results):
         wr.config.s3_endpoint_url = endpoint_url
         s3_session = boto3.Session(aws_access_key_id=os.getenv("s3_access_key"),
@@ -287,12 +242,70 @@ def nhsd_internal_delivery():
             AccessControlPolicy=grant_acl)
         return response
 
-    # flow to chain the tasks
-    with Flow("nhsd_internal_delivery", storage=storage, schedule=schedule) as f:
-        results = mysql_fetch(query)
-        s3paths = write_to_s3(results)
-        print_output(s3paths)
+    results = mysql_fetch(query)
+    s3paths = write_to_s3(results)
+    print_output(s3paths)
+
+
+@flow(name='nhsd_seen_update')
+def nhsd_seen_update():
+    # variables
+    if "dev" in os.getenv("env"):
+        nifi_pipeline_mesh_host = mesh_mysql_host_dev
+    else:
+        nifi_pipeline_mesh_host = mesh_mysql_host_prod
+
+    nifi_pipeline_mesh_password = os.getenv("mdb_mysql_password")
+    nifi_pipeline_mesh_user = mesh_mysql_user
+    nifi_pipeline_mesh_database = mesh_mysql_database
+
+    eng_table = eng_table_nhsd
+    sco_table = sco_table_nhsd
+
+    mlw_host = mlw_host_nhsd
+    mlw_password = os.getenv("mlwh_mysql_password")
+    mlw_user = mlw_user_nhsd
+    mlw_database = mlw_database_nhsd
+
+    nhsd_seen_update_query = nhsd_seen_update_query_nhsd_seen_update
+    @task(name='get_list_of_specimen_id')
+    def get_list_of_specimen_id():
+        connection = pymysql.connect(database=mlw_database, user=mlw_user, password=mlw_password, host=mlw_host,
+                                     port=3435, ssl={'ssl': 'TRUE'})
+        df = wr.mysql.read_sql_query(
+            sql=nhsd_seen_update_query,
+            con=connection
+        )
+        connection.close()
+        list = df['SpecimenID'].to_list()
+
+        return '(' + ','.join(f"'{x}'" for x in list) + ')'
+
+    @task(name='update_seen')
+    def update_seen(specimen_ids):
+        print('---updating seen---')
+        sql_engine = create_engine(
+            'mysql+pymysql://' + nifi_pipeline_mesh_user + ':' + nifi_pipeline_mesh_password + '@' + nifi_pipeline_mesh_host + '/' + nifi_pipeline_mesh_database,
+            pool_recycle=3600, connect_args={'ssl': {'ssl': True}})
+
+        connection = sql_engine.connect()
+        connection.execute(text('update ' + eng_table + ' set seen=1 where SpecimenID in ' + specimen_ids))
+        print('--updated seen in Eng table--')
+
+        connection.execute(text('update ' + sco_table + ' set seen=1 where SpecimenID in ' + specimen_ids))
+        print('--updated seen in Sco table--')
+
+        connection.close()
+
+    specimen_ids = get_list_of_specimen_id()
+    update_seen(specimen_ids)
+
+@flow(name='nhsd')
+def nhsd():
+    nhsd_ingestion()
+    nhsd_internal_delivery()
+    nhsd_seen_update()
 
 
 if __name__ == '__main__':
-    nhsd_ingestion()
+    nhsd()

@@ -72,19 +72,72 @@ platemap_notification_query = """
     """
 
 #Mesh database
-s3_bucket_prod = "mesh-prod"
-mysql_host_prod = "vm-mii-mesh-p1.internal.sanger.ac.uk"
+mesh_s3_bucket_prod = "mesh-prod"
+mesh_mysql_host_prod = "vm-mii-mesh-p1.internal.sanger.ac.uk"
 s3_bucket_dev = "mesh-dev"
-mysql_host_dev = "172.27.26.134"
-mysql_user = "nifi_user"
-mysql_database = "nifi_pipeline_mesh"
+mesh_mysql_host_dev = "172.27.26.134"
+mesh_mysql_user = "nifi_user"
+mesh_mysql_database = "nifi_pipeline_mesh"
 
 
 #NHSD pipeline variables
-eng_table = "nhsd_data_eng"
-sco_table = "nhsd_data_sco"
+eng_table_nhsd = "nhsd_data_eng"
+sco_table_nhsd = "nhsd_data_sco"
+
 nhsd_ingested_files_name = "nhsd_ingested_files.list"
 eng_file_type = "<WorkflowId>SANG_COVID19_ANTIGEN</WorkflowId>"
 sco_file_type = "<WorkflowId>SANG_COVID19_ANTIGEN_PHS</WorkflowId>"
 s3_path_nhsd_ind = "s3://dhsc-edge-prod/latest_nhsd_covid19.csv"
 endpoint_url_nhsd_ind = "https://cog.sanger.ac.uk"
+nhsd_ind_query = """
+    SELECT 
+      SpecimenId,
+      CASE
+          WHEN second(TestStartDate)=0 and microsecond(TestStartDate)=0 THEN DATE_FORMAT(TestStartDate,'%Y-%m-%dT%H:%i')
+          WHEN microsecond(TestStartDate)=0 THEN DATE_FORMAT(TestStartDate,'%Y-%m-%dT%H:%i:%s')
+          ELSE SUBSTRING(DATE_FORMAT(TestStartDate,'%Y-%m-%dT%H:%i:%s.%f'),1,23)
+      END as TestStartDate,
+      OuterPostcode,
+      VaccinationStatus,
+      VaccinationPeriod,
+      CASE
+         WHEN HasRecentlyTravelled=0 THEN 'false'
+         WHEN HasRecentlyTravelled IS NULL THEN HasRecentlyTravelled
+         ELSE 'true'
+      END as HasRecentlyTravelled,
+      Ch1Cq,
+      Ch1Result,
+      Ch1Target,
+      Ch2Cq,
+      Ch2Result,
+      Ch2Target,
+      Ch3Cq,
+      Ch3Result,
+      Ch3Target,
+      Ch4Cq,
+      Ch4Result,
+      Ch4Target,
+      SampleOfInterest,
+      VocOperation,
+      VocAreaName,
+      SampleSequencingPriority,
+      TestCentreID,
+      TestReason,
+      CASE 
+          WHEN second(SpecimenProcessedDate)=0 THEN DATE_FORMAT(SpecimenProcessedDate,'%Y-%m-%dT%H:%i')
+          ELSE DATE_FORMAT(SpecimenProcessedDate,'%Y-%m-%dT%H:%i:%s')
+      END as SpecimenProcessedDate
+    FROM 
+      nhsd_data_eng
+    WHERE 
+      seen=1
+    AND 
+      TestStartDate IS NOT NULL
+      """
+nhsd_seen_update_query_nhsd_seen_update = """Select ls.root_sample_id AS SpecimenID FROM mlwarehouse.lighthouse_sample ls WHERE (  ls.date_tested >= DATE_SUB( NOW(), INTERVAL 2 WEEK) or ls.id >= (SELECT (MAX(id)-100000) FROM mlwarehouse.lighthouse_sample)  )"""
+
+#mlw
+mlw_host_nhsd = 'mlwh-db-ro.internal.sanger.ac.uk'
+mlw_user_nhsd = 'mlwh_malaria'
+mlw_database_nhsd = 'mlwarehouse'
+mlw_table_nhsd = 'mlwh-db-ro'
