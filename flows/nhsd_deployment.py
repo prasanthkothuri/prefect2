@@ -3,7 +3,6 @@ from prefect.filesystems import RemoteFileSystem
 from prefect.infrastructure.docker import DockerContainer
 from prefect.deployments import Deployment
 from prefect.server.schemas.schedules import CronSchedule
-from flows.platemap_flow import platemap_feedback_processing
 
 import os
 
