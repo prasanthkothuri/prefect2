@@ -1,6 +1,7 @@
 from prefect_shell import shell_run_command
 from prefect import flow, task
 from prefect_email import  email_send_message, EmailServerCredentials
+from sanger.covid.platemap.processing.config import PlateMapConfig
 import os
 import pymysql
 from datetime import datetime
