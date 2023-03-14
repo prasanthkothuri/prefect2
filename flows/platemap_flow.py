@@ -1,6 +1,7 @@
 from prefect_shell import shell_run_command
 from prefect import flow, task
 from prefect_email import  email_send_message, EmailServerCredentials
+from sanger.covid.platemap.processing.config import PlateMapConfig
 import os
 import pymysql
 from datetime import datetime
@@ -22,7 +23,7 @@ def download_from_db():
     # variables
     config_path = "job_configs/covid/platemap/processing.json"
     env = os.getenv("env")
-    config: PlateMapConfig = PlateMapConfig.read_from_json(env, config_path)
+    config = PlateMapConfig.read_from_json(env, config_path)
     host = config.common_config.databases.dt4_mysql.host
     port = config.common_config.databases.dt4_mysql.port
     user_name = config.common_config.databases.dt4_mysql.user_name

@@ -11,6 +11,7 @@ history_server_ip = os.environ['history_server_ip']
 history_server_port = os.environ['history_server_port']
 image_tag = os.environ['image_tag']
 image = f"gitlab-registry.internal.sanger.ac.uk/pam-dt4/spark-service/spark-service-docker/spark-app:{image_tag}"
+mdb_mysql_password = os.environ['mdb_mysql_password']
 
 # set the variables required for docker block
 dockerenv = {"env": env,
@@ -21,7 +22,9 @@ dockerenv = {"env": env,
              "s3_access_key": s3_access_key,
              "s3_secret_key": s3_secret_key,
              "history_server_port": history_server_port,
-             "history_server_ip": history_server_ip
+             "history_server_ip": history_server_ip,
+             "PYTHONPATH": "/opt/covid_reports:/opt/prefect",
+             "mdb_mysql_password": mdb_mysql_password
              }
 volumes = [
     "/k8s:/k8s",
