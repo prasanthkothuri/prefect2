@@ -302,7 +302,6 @@ def nhsd_seen_update():
 @flow(name='nhsd')
 def nhsd():
     nhsd_ingestion()
-    nhsd_internal_delivery()
     nhsd_seen_update()
 
 
