@@ -1,9 +1,8 @@
-from flows.platemap_flow import platemap
+from flows.nhsd_flow import nhsd, nhsd_internal_delivery
 from prefect.filesystems import RemoteFileSystem
 from prefect.infrastructure.docker import DockerContainer
 from prefect.deployments import Deployment
 from prefect.server.schemas.schedules import CronSchedule
-from flows.platemap_flow import platemap_feedback_processing
 
 import os
 
@@ -13,25 +12,25 @@ docker_container_block = DockerContainer.load(f"{env}-docker-block")
 
 print("deployment started")
 
-platemap_deployment = Deployment.build_from_flow(
-    flow=platemap,
-    name="platemap",
+deployment_nhsd_ingest = Deployment.build_from_flow(
+    flow=nhsd,
+    name="nhsd",
     work_pool_name=f"{env}-agent-pool",
     work_queue_name="default",
     storage=remote_file_system_block,
     infrastructure= docker_container_block,
-    schedule=(CronSchedule(cron="10 07 * * 0-6", timezone="Europe/London")),
+    schedule=(CronSchedule(cron="20,50 * * * *", timezone="Europe/London")),
     apply=True
 )
 
-platemap_fb_deployment = Deployment.build_from_flow(
-    flow=platemap_feedback_processing,
-    name="platemap",
+deployment_nhsd_internal_del = Deployment.build_from_flow(
+    flow=nhsd_internal_delivery,
+    name="nhsd",
     work_pool_name=f"{env}-agent-pool",
     work_queue_name="default",
     storage=remote_file_system_block,
     infrastructure= docker_container_block,
-    schedule=(CronSchedule(cron="40 06,07,08 * * 0-6", timezone="Europe/London")),
+    schedule=(CronSchedule(cron="45 06 * * *", timezone="Europe/London")),
     apply=True
 )
 
