@@ -145,4 +145,4 @@ mlw_table_nhsd = 'mlwh-db-ro'
 
 
 #Box manifest
-sync_box_manifest_files = '/root/prefect/scripts/sync_box_manifest_files.sh'
+sync_box_manifest_files = '/opt/prefect/scripts/sync_box_manifest_files.sh'
