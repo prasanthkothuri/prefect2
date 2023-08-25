@@ -29,6 +29,18 @@ prefect - http://172.27.24.162:4200/
 
 ### Deploy to development
 CI/CD pipeline to be built once all the flows are migrated to prefect2
+```
+ssh ubuntu@172.27.24.162
+sudo su -
+cd prefect2
+python3 flows/sequences_upload_deployment.py
+```
+
+### Docker image required for prefect2
+https://gitlab.internal.sanger.ac.uk/pam-dt4/spark-service/spark-service-docker/-/blob/prefect2/spark-app/Dockerfile
+
+Built with schedule - Build prefect2 image - dev
+https://gitlab.internal.sanger.ac.uk/pam-dt4/spark-service/spark-service-docker/-/pipeline_schedules
 
 ### Access Dev. logs
 
