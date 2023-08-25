@@ -28,7 +28,8 @@ dockerenv = {"env": env,
              }
 volumes = [
     "/k8s:/k8s",
-    "/root/.config:/root/.config"
+    "/root/.config:/root/.config",
+    "/root/.ssh:/root/.ssh"
 ]
 
 # create the docker infrastructure block
@@ -36,6 +37,7 @@ dBlock = DockerContainer(auto_remove=True,
                          env=dockerenv,
                          image=image,
                          volumes=volumes,
+                         network_mode='bridge',
                          image_pull_policy='ALWAYS')
 
 try:

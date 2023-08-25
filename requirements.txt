@@ -4,3 +4,4 @@ prefect-shell==0.1.5
 prefect-email==0.2.2
 s3fs==2023.1.0
 requests==2.28.2
+pydantic==1.10.6
