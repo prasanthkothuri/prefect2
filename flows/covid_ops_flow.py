@@ -26,7 +26,7 @@ def covid_ops_dhsc_delivery():
 # flow to chain the tasks
 @flow(name='covid_ops_processing')
 def covid_ops_processing():
-    #covid_ops_data_process()
+    covid_ops_data_process()
     covid_ops_internal_delivery()
     covid_ops_dhsc_delivery()
 
